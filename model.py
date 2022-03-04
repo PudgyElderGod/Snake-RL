@@ -9,8 +9,8 @@ class Linear_QNet(nn.Module):
         super().__init__()
         self.linear1 = nn.Linear(input_size,hidden_size).cpu()
         self.linear2 = nn.Linear(hidden_size,output_size).cpu()
-        
-    
+
+
     def forward(self, x):
         x = F.relu(self.linear1(x))
         x = self.linear2(x)
@@ -26,13 +26,15 @@ class QTrainer:
         self.lr = lr
         self.gamma = gamma
         self.model = model
-        self.optimer = optim.Adam(model.parameters(),lr = self.lr)    
+        self.optimer = optim.Adam(model.parameters(),lr = self.lr)
         self.criterion = nn.MSELoss()
         # for i in self.model.parameters():
         #     print(i.is_cpu)
 
-    
+
     # TODO: Explain how this method works.
+    # This method plugs the model information into a torch tensor (resizing it if only one parameter needs to be trained),
+    # then finds the new q value for each step based on the information provided and the learning equation
     def train_step(self,state,action,reward,next_state,done):
         state = torch.tensor(state,dtype=torch.float).cpu()
         next_state = torch.tensor(next_state,dtype=torch.float).cpu()
@@ -48,7 +50,7 @@ class QTrainer:
             reward = torch.unsqueeze(reward,0).cpu()
             done = (done, )
 
-           
+
 
         # 1. Predicted Q value with current state
         pred = self.model(state).cpu()
@@ -57,7 +59,7 @@ class QTrainer:
             Q_new = reward[idx]
             if not done[idx]:
                 Q_new = reward[idx] + self.gamma * torch.max(self.model(next_state[idx])).cpu()
-            target[idx][torch.argmax(action).item()] = Q_new 
+            target[idx][torch.argmax(action).item()] = Q_new
         # 2. Q_new = reward + gamma * max(next_predicted Qvalue) -> only do this if not done
         # pred.clone()
         # preds[argmax(action)] = Q_new
@@ -66,5 +68,5 @@ class QTrainer:
         loss.backward()
 
         self.optimer.step()
-         
+
 

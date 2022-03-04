@@ -1,5 +1,5 @@
-import torch 
-import random 
+import torch
+import random
 import numpy as np
 from collections import deque
 from snake_gameai import SnakeGameAI,Direction,Point,BLOCK_SIZE
@@ -15,24 +15,24 @@ class Agent:
         self.epsilon = 0 # Randomness
         self.gamma = 0.9 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY) # popleft()
-        self.model = Linear_QNet(11,256,3) 
+        self.model = Linear_QNet(11,256,3)
         self.trainer = QTrainer(self.model,lr=LR,gamma=self.gamma)
         # for n,p in self.model.named_parameters():
-        #     print(p.device,'',n) 
-        # self.model.to('cuda')   
+        #     print(p.device,'',n)
+        # self.model.to('cuda')
         # for n,p in self.model.named_parameters():
-        #     print(p.device,'',n)         
+        #     print(p.device,'',n)
 
 
     # state (11 Values)
     #[ danger straight, danger right, danger left,
-    #   
+    #
     # direction left, direction right,
     # direction up, direction down
-    # 
+    #
     # food left,food right,
     # food up, food down]
-    def get_state(self,game):
+    def get_state(self, game):
         head = game.snake[0]
         point_l=Point(head.x - BLOCK_SIZE, head.y)
         point_r=Point(head.x + BLOCK_SIZE, head.y)
@@ -55,7 +55,7 @@ class Agent:
             (dir_u and game.is_collision(point_r))or
             (dir_d and game.is_collision(point_l))or
             (dir_u and game.is_collision(point_u))or
-            (dir_d and game.is_collision(point_d)),
+            (dir_l and game.is_collision(point_d)),
 
             #Danger Left
             (dir_u and game.is_collision(point_r))or
@@ -91,7 +91,8 @@ class Agent:
     def train_short_memory(self,state,action,reward,next_state,done):
         self.trainer.train_step(state,action,reward,next_state,done)
 
-    # TODO: What is the role of epsilon in this method? Feel free to reference the OpenAI Gym RL tutorial from 02/09/22
+    # What is the role of epsilon in this method? Feel free to reference the OpenAI Gym RL tutorial from 02/09/22
+    # Epsilon is the chance of experimenting with new actions rather than referencing the model
     def get_action(self,state):
         # random moves: tradeoff explotation / exploitation
         self.epsilon = 80 - self.n_game
@@ -101,12 +102,16 @@ class Agent:
             final_move[move]=1
         else:
             state0 = torch.tensor(state,dtype=torch.float).cpu()
-            prediction = self.model(state0).cpu() # prediction by model 
+            prediction = self.model(state0).cpu() # prediction by model
             move = torch.argmax(prediction).item()
-            final_move[move]=1 
+            final_move[move]=1
         return final_move
 
-# TODO: Write a couple sentences describing the training process coded below.
+# Write a couple sentences describing the training process coded below.
+# The training process includes getting the current state, choosing and performing a move to get a new state,
+# then committing the results of that move to (short-term) memory.
+# Once the game ends, the overall results are committed to long-term memory and the results are plotted on a graph
+# Then a new game begins, repeat ad nauseum until the program is halted
 def train():
     plot_scores = []
     plot_mean_scores = []
@@ -136,11 +141,11 @@ def train():
             game.reset()
             agent.n_game += 1
             agent.train_long_memory()
-            if(score > reward): # new High score 
-                reward = score
+            if(score > record): # new High score
+                record = score
                 agent.model.save()
             print('Game:',agent.n_game,'Score:',score,'Record:',record)
-            
+
             plot_scores.append(score)
             total_score+=score
             mean_score = total_score / agent.n_game
@@ -151,5 +156,9 @@ def train():
 if(__name__=="__main__"):
     train()
 
-# TODO: Write a brief paragraph on your thoughts about this implementation. 
+# TODO: Write a brief paragraph on your thoughts about this implementation.
 # Was there anything surprising, interesting, confusing, or clever? Does the code smell at all?
+# This seems like a fairly straightforward implementation for the most part.
+# The state information of "danger left/right/straight" is interesting, I'm not sure my own implementation would have considered that.
+# Instead I might have simply increased the penalty for colliding with the danger.
+# There were also a couple of small bugs that prevented features from working properly, but I've corrected what I found.
